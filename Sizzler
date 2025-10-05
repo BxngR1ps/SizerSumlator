@@ -2,15 +2,16 @@
 loadstring(game:HttpGet('https://pastebin.com/raw/cwDSpepQ', true))()
 
 local first = library:AddWindow('SizerSumlator - by K🌹rl')
-local first_tab = first:AddTab('github/BxngR1ps')
+local first_tab = first:AddTab('Main Tab')
 
 -- Variables for switches
 local this_game_sucks = false
 local meat = false
 local coin = false
+local Vip = false
 
 -- Add switches for gameplay control
-first_tab:AddSwitch('Auto Defeat Chickens (Random)', function(a)
+first_tab:AddSwitch('Auto Fight (Random)', function(a)
     this_game_sucks = a
 end)
 
@@ -20,6 +21,18 @@ end)
 
 first_tab:AddSwitch('Auto Farm Coins', function(a)
     coin = a
+end)
+
+first_tab:AddSwitch('Fake Vip', function(a)
+    Vip = a
+end)
+
+
+spawn(function()
+	while task.wait(1) do
+		if Vip then
+			workspace.VIPWindow.Main.CanCollide = Vip
+	end
 end)
 
 -- Adding a button for Infinite Yield execution
@@ -127,7 +140,7 @@ spawn(function()
 	end
 end)
 -- Create a second tab for additional features
-local second_tab = first:AddTab('Extras')
+local second_tab = first:AddTab('Extras Tab - github/BxngR1ps')
 
 local player = game.Players.LocalPlayer
 -- Wait for character to load
