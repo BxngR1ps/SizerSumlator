@@ -88,57 +88,77 @@ end)
 spawn(function()
 	while task.wait() do
 		if nearest and id and this_game_sucks then
-			local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+			local player = game.Players.LocalPlayer
+			local char = player.Character
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
 			if not hrp then continue end
 
 			RemoteEvent:FireServer("Animal Selected", id)
 
-			-- tween move towards the chicken
-			local target = nearest.CFrame * CFrame.new(0, 2, 0)
-			local tween = TweenService:Create(hrp, TweenInfo.new(0.25, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = target})
-			tween:Play()
-			tween.Completed:Wait()
+			local targetPos = nearest.Position + Vector3.new(0, 2, 0)
+			local stepSize = 0.35 -- how smooth the slide feels (lower = smoother / slower)
+			local maxDist = 20    -- prevent big jumps
 
-			-- send hits while near chicken
-			if nearest and nearest.Parent and nearest.Parent:FindFirstChild("CharId") and this_game_sucks then
+			-- smooth move toward target without teleport snapping
+			if (hrp.Position - targetPos).Magnitude > 2 then
+				local direction = (targetPos - hrp.Position).Unit
+				local moveDist = math.min((hrp.Position - targetPos).Magnitude, maxDist)
+				local goalPos = hrp.Position + direction * moveDist * stepSize
+				hrp.CFrame = CFrame.new(goalPos, targetPos) -- face the target
+			end
+
+			-- while close enough, do the hits
+			if (hrp.Position - targetPos).Magnitude < 8 then
 				for i = 1, 10 do
+					if not this_game_sucks then break end
 					RemoteEvent:FireServer("Animal Hit", id)
 					task.wait(0.05)
 				end
-			else
-				last, nearest, id = math.huge, nil, nil
 			end
+		else
+			last, nearest, id = math.huge, nil, nil
 		end
 	end
 end)
 
--- meat + coins stays same (safe)
 spawn(function()
-	while task.wait() do
+	while task.wait(0.25) do
 		local player = game.Players.LocalPlayer
-		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		local char = player.Character or player.CharacterAdded:Wait()
+		local hrp = char:FindFirstChild("HumanoidRootPart")
 		if not hrp then continue end
 
+		-- auto meat collect
 		if meat then
-			for i, v in pairs(workspace:GetChildren()) do 
-				if string.find(v.Name:lower(), "meat") and v.Name ~= "DropOffMeat" and v:FindFirstChild("Main") then
-					v.Main.CFrame = hrp.CFrame
+			for _, v in pairs(workspace:GetChildren()) do
+				if v:IsA("Model") and string.find(v.Name:lower(), "meat") and v.Name ~= "DropOffMeat" then
+					local main = v:FindFirstChild("Main") or v:FindFirstChildWhichIsA("BasePart")
+					if main and not main.Anchored then
+						-- soft pull toward player
+						main.CFrame = main.CFrame:Lerp(hrp.CFrame, 0.35)
+					end
 				end
 			end
-			RemoteEvent:FireServer('Drop Off Meat')
-			RemoteEvent:FireServer('Collect Grill Coins')
+
+			pcall(function()
+				RemoteEvent:FireServer("Drop Off Meat")
+				RemoteEvent:FireServer("Collect Grill Coins")
+			end)
 		end
 
-		if coin then
-			for i, v in pairs(workspace.Currency:GetChildren()) do
-				local p = v:FindFirstChildWhichIsA('Part')
-				if p and p:FindFirstChild('TouchInterest') then
-					p.CFrame = hrp.CFrame
+		-- auto coin collect
+		if coin and workspace:FindFirstChild("Currency") then
+			for _, v in pairs(workspace.Currency:GetChildren()) do
+				local p = v:FindFirstChildWhichIsA("BasePart")
+				if p and p:FindFirstChild("TouchInterest") then
+					-- small lerp instead of hard snap
+					p.CFrame = p.CFrame:Lerp(hrp.CFrame, 0.5)
 				end
 			end
 		end
 	end
 end)
+
 -- Create a second tab for additional features
 local second_tab = first:AddTab('Extras Tab - github/BxngR1ps')
 
