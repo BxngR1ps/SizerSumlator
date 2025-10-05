@@ -24,12 +24,10 @@ end)
 
 -- Adding a button for Infinite Yield execution
 first_tab:AddButton('Click All (Useful)', function()
-    --// Grab player
 	local player = game.Players.LocalPlayer
 	local char = player.Character or player.CharacterAdded:Wait()
 	local root = char:WaitForChild("HumanoidRootPart")
 
-	--// Loop through everything in workspace
 	for _, v in ipairs(workspace:GetDescendants()) do
 		if v:IsA("TouchTransmitter") or v.Name == "TouchInterest" then
 			firetouchinterest(root, v.Parent, 0)
@@ -37,75 +35,97 @@ first_tab:AddButton('Click All (Useful)', function()
 		end
 	end
 
-
-game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "Click Everything",
-    Text = "lul but useful",
-    Icon = "rbxassetid://86501960555905"
-})
+	game:GetService("StarterGui"):SetCore("SendNotification", {
+		Title = "Click Everything",
+		Text = "lul but useful",
+		Icon = "rbxassetid://86501960555905"
+	})
 end)
 
 -- Remote event setup
 local RemoteEvent = game:GetService("ReplicatedStorage").RemoteEvent
+local TweenService = game:GetService("TweenService")
+
 local last = math.huge
 local nearest = nil
 local id = nil
 
--- Function to spawn for attacking chickens
+-- smooth auto chicken
 spawn(function()
-    while wait() do
-        for i, v in pairs(game.workspace:GetChildren()) do	
-            if v:FindFirstChild('CharId') and this_game_sucks then
-                local distance = (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - v:FindFirstChildWhichIsA('Part').Position).magnitude
-                if distance < last then
-                    last = distance
-                    nearest = v:FindFirstChildWhichIsA('Part') 
-                    id = v.CharId.Value
-                end
-            end
-        end
-    end
+	while task.wait(1) do
+		if this_game_sucks then
+			last, nearest, id = math.huge, nil, nil
+			for _, v in pairs(workspace:GetChildren()) do	
+				if v:FindFirstChild('CharId') and v:FindFirstChildWhichIsA('Part') then
+					local part = v:FindFirstChildWhichIsA('Part')
+					local dist = (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - part.Position).Magnitude
+					if dist < last then
+						last = dist
+						nearest = part
+						id = v.CharId.Value
+					end
+				end
+			end
+		else
+			last, nearest, id = math.huge, nil, nil
+		end
+	end
 end)
 
 spawn(function()
-    while wait() do
-        for i, v in pairs(game.workspace:GetChildren()) do	
-            if nearest ~= nil and id ~= nil and v:FindFirstChild('CharId') and this_game_sucks and v.CharId.Value == id then
-                RemoteEvent:FireServer("Animal Selected", v.CharId.Value)
-                repeat
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = nearest.CFrame
-                    for i = 1, 10 do
-                        RemoteEvent:FireServer("Animal Hit", v.CharId.Value)
-                    end
-                    wait()
-                until not v or not v:FindFirstChild('CharId') or not v:FindFirstChildWhichIsA('Part') or not nearest or not nearest.Parent or not this_game_sucks
-                last, nearest, id = math.huge, nil, nil
-            end
-        end
-    end
+	while task.wait() do
+		if nearest and id and this_game_sucks then
+			local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+			if not hrp then continue end
+
+			RemoteEvent:FireServer("Animal Selected", id)
+
+			-- tween move towards the chicken
+			local target = nearest.CFrame * CFrame.new(0, 2, 0)
+			local tween = TweenService:Create(hrp, TweenInfo.new(0.25, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = target})
+			tween:Play()
+			tween.Completed:Wait()
+
+			-- send hits while near chicken
+			if nearest and nearest.Parent and nearest.Parent:FindFirstChild("CharId") and this_game_sucks then
+				for i = 1, 10 do
+					RemoteEvent:FireServer("Animal Hit", id)
+					task.wait(0.05)
+				end
+			else
+				last, nearest, id = math.huge, nil, nil
+			end
+		end
+	end
 end)
 
+-- meat + coins stays same (safe)
 spawn(function()
-    while wait() do
-        if meat then
-            for i, v in pairs(game.workspace:GetChildren()) do 
-                if string.find(v.Name:lower(), "meat") and v.Name ~= "DropOffMeat" and v:FindFirstChild("Main") then
-                    v.Main.CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
-                end
-            end
-            RemoteEvent:FireServer('Drop Off Meat')
-            RemoteEvent:FireServer('Collect Grill Coins')
-        end
-        if coin then
-            for i, v in pairs(game:GetService("Workspace").Currency:GetChildren()) do
-                if v:FindFirstChildWhichIsA('Part') and v:FindFirstChildWhichIsA('Part'):FindFirstChild('TouchInterest') then
-                    v:FindFirstChildWhichIsA('Part').CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
-                end
-            end
-        end
-    end
-end)
+	while task.wait() do
+		local player = game.Players.LocalPlayer
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if not hrp then continue end
 
+		if meat then
+			for i, v in pairs(workspace:GetChildren()) do 
+				if string.find(v.Name:lower(), "meat") and v.Name ~= "DropOffMeat" and v:FindFirstChild("Main") then
+					v.Main.CFrame = hrp.CFrame
+				end
+			end
+			RemoteEvent:FireServer('Drop Off Meat')
+			RemoteEvent:FireServer('Collect Grill Coins')
+		end
+
+		if coin then
+			for i, v in pairs(workspace.Currency:GetChildren()) do
+				local p = v:FindFirstChildWhichIsA('Part')
+				if p and p:FindFirstChild('TouchInterest') then
+					p.CFrame = hrp.CFrame
+				end
+			end
+		end
+	end
+end)
 -- Create a second tab for additional features
 local second_tab = first:AddTab('Extras')
 
